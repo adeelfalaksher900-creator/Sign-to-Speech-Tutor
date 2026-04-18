@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>🤟 Sign-to-Speech Tutor</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    :root {
+      --brand-bg: #E3F2FD;
+      --brand-card: #FFFFFF;
+      --brand-text: #455A64;
+      --brand-accent: #1976D2;
+    }
+    body {
+      background-color: var(--brand-bg);
+      color: var(--brand-text);
+      font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    }
+    .shadow-brand {
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+    }
+    .shadow-hover {
+      box-shadow: 0 8px 15px rgba(0, 0, 0, 0.1);
+    }
+    input[type="range"] {
+      accent-color: var(--brand-accent);
+    }
+    .speaking-indicator {
+      transition: all 0.3s ease;
+      opacity: 0;
+    }
+    .active .speaking-indicator {
+      opacity: 1;
+      transform: scale(1.5);
+      box-shadow: 0 0 0 4px rgba(25, 118, 210, 0.2);
+    }
+    .active {
+      background-color: #F1F8FE;
+      border-color: var(--brand-accent);
+    }
+    /* Hide scrollbar but keep functionality */
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+  </style>
+</head>
+<body class="min-h-screen p-6">
+
+  <div class="max-w-[1024px] mx-auto flex flex-col min-h-[90vh]">
+    <!-- Header -->
+    <header class="flex justify-between items-center mb-8 px-2">
+      <div class="flex items-center gap-3">
+        <h1 class="text-3xl font-bold">🤟 Sign-to-Speech Tutor</h1>
+      </div>
+    </header>
+
+    <!-- Voice Settings Section -->
+    <section class="grid grid-cols-1 md:grid-cols-3 gap-6 bg-white p-6 rounded-2xl shadow-brand mb-8" aria-label="Voice Settings">
+      <div class="flex flex-col gap-2">
+        <label class="text-xs font-bold text-slate-400 uppercase tracking-widest">Voice Selection</label>
+        <select id="voice-select" class="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer">
+          <option value="">Loading voices...</option>
+        </select>
+      </div>
+
+      <div class="flex flex-col gap-2">
+        <label class="text-xs font-bold text-slate-400 uppercase tracking-widest">Speed (Rate): <span id="rate-val">1.0</span>x</label>
+        <input type="range" id="rate-range" min="0.5" max="2" step="0.1" value="1" class="w-full h-2 rounded-lg cursor-pointer">
+      </div>
+
+      <div class="flex flex-col gap-2">
+        <label class="text-xs font-bold text-slate-400 uppercase tracking-widest">Pitch: <span id="pitch-val">1.0</span></label>
+        <input type="range" id="pitch-range" min="0.5" max="2" step="0.1" value="1" class="w-full h-2 rounded-lg cursor-pointer">
+      </div>
+    </section>
+
+    <!-- Custom Text-to-Speech Section -->
+    <section class="bg-white p-5 rounded-2xl shadow-brand mb-10 border-2 border-blue-500/5">
+      <label class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3 block">Custom Text Output</label>
+      <div class="flex gap-3">
+        <input 
+          type="text" 
+          id="custom-text" 
+          placeholder="Type something to speak..." 
+          class="flex-grow bg-slate-50 border border-slate-200 rounded-xl px-4 py-3.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-inner"
+        >
+        <button 
+          id="speak-btn"
+          class="bg-[#1976D2] hover:bg-blue-700 text-white p-4 rounded-xl transition-all transform hover:scale-105 active:scale-95 shadow-lg flex items-center justify-center"
+        >
+          <i data-lucide="send" class="w-5 h-5"></i>
+        </button>
+      </div>
+    </section>
+
+    <!-- Flashcards Grid -->
+    <main id="flashcard-grid" class="grid grid-cols-2 md:grid-cols-4 gap-6 mb-12">
+      <!-- Cards will be injected by JS -->
+    </main>
+
+    <!-- Footer -->
+    <footer class="mt-auto text-center py-6 border-t border-slate-200/50">
+      <p class="text-slate-400 text-sm italic">
+        Keyboard Navigation: Use <span class="font-bold">TAB</span> to browse and <span class="font-bold">ENTER</span> or <span class="font-bold">SPACE</span> to speak.
+      </p>
+    </footer>
+  </div>
+
+  <script>
+    const synth = window.speechSynthesis;
+    const voiceSelect = document.getElementById('voice-select');
+    const rateRange = document.getElementById('rate-range');
+    const pitchRange = document.getElementById('pitch-range');
+    const rateVal = document.getElementById('rate-val');
+    const pitchVal = document.getElementById('pitch-val');
+    const customInput = document.getElementById('custom-text');
+    const speakBtn = document.getElementById('speak-btn');
+    const grid = document.getElementById('flashcard-grid');
+
+    let voices = [];
+    const flashcards = [
+      { id: '1', label: 'Hello', emoji: '👋' },
+      { id: '2', label: 'Thank You', emoji: '🙏' },
+      { id: '3', label: 'Help', emoji: '🆘' },
+      { id: '4', label: 'Water', emoji: '💧' },
+      { id: '5', label: 'Food', emoji: '🍎' },
+      { id: '6', label: 'Yes', emoji: '✅' },
+      { id: '7', label: 'No', emoji: '❌' },
+      { id: '8', label: 'Please', emoji: '🥺' }
+    ];
+
+    function populateVoices() {
+      voices = synth.getVoices();
+      voiceSelect.innerHTML = voices
+        .map(voice => `<option value="${voice.name}">${voice.name} (${voice.lang})</option>`)
+        .join('');
+      
+      // Select a default
+      const defaultVoice = voices.find(v => v.name.includes('Google')) || voices[0];
+      if (defaultVoice) voiceSelect.value = defaultVoice.name;
+    }
+
+    if (synth.onvoiceschanged !== undefined) {
+      synth.onvoiceschanged = populateVoices;
+    }
+
+    function speak(text, elementId) {
+      if (synth.speaking) synth.cancel();
+      if (!text.trim()) return;
+
+      const utterance = new SpeechSynthesisUtterance(text);
+      const selectedVoiceName = voiceSelect.value;
+      const voice = voices.find(v => v.name === selectedVoiceName);
+      
+      if (voice) utterance.voice = voice;
+      utterance.rate = rateRange.value;
+      utterance.pitch = pitchRange.value;
+
+      utterance.onstart = () => {
+        if (elementId) {
+          document.getElementById(elementId).classList.add('active');
+        } else {
+          speakBtn.classList.add('animate-pulse');
+        }
+      };
+      
+      utterance.onend = () => {
+        if (elementId) {
+          document.getElementById(elementId).classList.remove('active');
+        } else {
+          speakBtn.classList.remove('animate-pulse');
+        }
+      };
+
+      synth.speak(utterance);
+    }
+
+    function renderCards() {
+      grid.innerHTML = flashcards.map(card => `
+        <button 
+          id="card-${card.id}" 
+          class="group bg-white rounded-3xl p-8 flex flex-col items-center justify-center gap-4 transition-all duration-300 border-2 border-transparent shadow-brand hover:-translate-y-1 hover:shadow-hover hover:border-blue-500 relative"
+          onclick="speak('${card.label}', 'card-${card.id}')"
+          aria-label="Speak ${card.label}"
+        >
+          <span class="text-6xl transition-transform group-hover:scale-110">${card.emoji}</span>
+          <span class="text-lg font-bold">${card.label}</span>
+          <div class="speaking-indicator absolute bottom-4 right-4 w-2 h-2 bg-blue-600 rounded-full"></div>
+        </button>
+      `).join('');
+    }
+
+    // Event Listeners
+    rateRange.addEventListener('input', () => rateVal.textContent = rateRange.value);
+    pitchRange.addEventListener('input', () => pitchVal.textContent = pitchRange.value);
+    speakBtn.addEventListener('click', () => speak(customInput.value));
+    customInput.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') speak(customInput.value);
+    });
+
+    // Initialize
+    populateVoices();
+    renderCards();
+    lucide.createIcons();
+  </script>
+</body>
+</html>

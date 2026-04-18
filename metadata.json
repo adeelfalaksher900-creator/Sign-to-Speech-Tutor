@@ -1,0 +1,6 @@
+{
+  "name": "Sign-to-Speech Tutor",
+  "description": "A standalone Single-File Sign-to-Speech Tutor with custom text-to-speech capabilities.",
+  "requestFramePermissions": [],
+  "majorCapabilities": []
+}
